@@ -1,42 +1,48 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import axios from 'axios';
 
+
+// https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-completion
 interface LLMResponse {
-	completion: string; // Or whatever data your LLM returns
-	// Add more properties if needed
-  }
-  
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
+	// response of nostreaming 
+	model: string;
+	created_at: string;
+	response: string;
+	done: boolean;
+	context: Array<number>;
+	total_duration: number;
+	load_duration: number;
+	prompt_eval_count: number;
+	prompt_eval_duration: number;
+	eval_count: number;
+	eval_duration: number;
+}
+let prefix_prompt = "Complete this line:\n";
+
 export function activate(context: vscode.ExtensionContext) {
+    vscode.languages.registerCompletionItemProvider('*', {
+        provideCompletionItems(document, position) {
+            const linePrefix = document.lineAt(position).text.substr(0, position.character);
+            
+            console.log("Requesting completion for:", linePrefix); // Log the request
 
-	// // Use the console to output diagnostic information (console.log) and errors (console.error)
-	// // This line of code will only be executed once when your extension is activated
-	// console.log('Congratulations, your extension "duccopilot" is now active!');
+            return axios.post<LLMResponse>('http://localhost:11434/api/generate', {
+                prompt: prefix_prompt + linePrefix,
+                model: "codellama:7b-code",
+                stream: false
+            })
+                .then(response => {
+                    console.log("Received response:", response.data); // Log the response
 
-	// // The command has been defined in the package.json file
-	// // Now provide the implementation of the command with registerCommand
-	// // The commandId parameter must match the command field in package.json
-	// const disposable = vscode.commands.registerCommand('duccopilot.helloWorld', () => {
-	// 	// The code you place here will be executed every time your command is executed
-	// 	// Display a message box to the user
-	// 	vscode.window.showInformationMessage('Hello World from DucCopilot!');
-	// });
-
-	// context.subscriptions.push(disposable);
-	vscode.languages.registerCompletionItemProvider('*', {
-		provideCompletionItems(document, position) {
-			const linePrefix = document.lineAt(position).text.substr(0, position.character);
-	      	return axios.post('http://localhost:5000/generate', { context: linePrefix })
-        		.then(response => {
-          		const suggestion = response.data.completion;
-          		return [new vscode.CompletionItem(suggestion, vscode.CompletionItemKind.Snippet)];
-        	});
-		}
-	});
+                    const suggestion = response.data.response;
+                    return [new vscode.CompletionItem(suggestion, vscode.CompletionItemKind.Snippet)];
+                })
+                .catch(error => {
+                    console.error("Error fetching completion:", error); // Log errors
+                    return []; // Or handle the error differently
+                });
+        }
+    });
 }
 
-// This method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate() { }
