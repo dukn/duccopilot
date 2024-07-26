@@ -14,6 +14,11 @@ For example if there is an image subfolder under your extension project workspac
 
 ## Requirements
 
+OLLAMA as a backend.
+```
+ollama run codellama:7b-code
+```
+
 If you have any requirements or dependencies, add a section describing those and how to install and configure them.
 
 ## Extension Settings
